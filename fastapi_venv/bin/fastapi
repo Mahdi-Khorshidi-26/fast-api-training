@@ -1,0 +1,9 @@
+#!/bin/sh
+'''exec' "/Users/mahdikhorshidi/Documents/Projects/Python Projects/fast-api/fastapi_venv/bin/python3.14" "$0" "$@"
+' '''
+import sys
+from fastapi.cli import main
+if __name__ == '__main__':
+    if sys.argv[0].endswith('.exe'):
+        sys.argv[0] = sys.argv[0][:-4]
+    sys.exit(main())
