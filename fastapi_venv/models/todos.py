@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean,ForeignKey
 from pydantic import BaseModel, Field
 from database.todos import Base
 
@@ -26,3 +26,4 @@ class Todos(Base):
     title = Column(String, index=True)
     description = Column(String, index=True)
     completed = Column(Boolean, default=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), index=True)  # Optional: link to user who created the todo
