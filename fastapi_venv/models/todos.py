@@ -9,7 +9,7 @@ class TodoRequest(BaseModel):
     completed: bool = Field(default=False, description="Completion status")
 
     model_config = {
-        "schema_extra": {
+        "json_schema_extra": {
             "example": {
                 "title": "Buy groceries",
                 "description": "Milk, Bread, Eggs",
