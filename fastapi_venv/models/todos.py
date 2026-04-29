@@ -22,8 +22,8 @@ class TodoRequest(BaseModel):
 class Todos(Base):
     __tablename__ = "todos"
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String, index=True)
+    id = Column(Integer, primary_key=True)
+    title = Column(String(50), index=True)
+    description = Column(String(200), index=True)
     completed = Column(Boolean, default=False)
     owner_id = Column(Integer, ForeignKey("users.id"), index=True)  # Optional: link to user who created the todo

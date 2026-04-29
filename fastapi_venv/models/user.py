@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from database.todos import Base
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean,Numeric
 from passlib.context import CryptContext
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -30,10 +30,10 @@ class UserRequest(BaseModel):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, index=True)
-    email = Column(String, index=True)
-    password = Column(String)
+    id = Column(Integer, primary_key=True,autoincrement=True)
+    username = Column(String(50), index=True)
+    email = Column(String(100), index=True, unique=True ,nullable=False)
+    password = Column(String(255))
     is_active = Column(Boolean, default=True)
-    first_name = Column(String)
-    last_name = Column(String)
+    first_name = Column(String(50))
+    last_name = Column(String(50))

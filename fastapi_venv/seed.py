@@ -1,10 +1,47 @@
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from database.todos import SessionLocal, create_db
 from models.todos import Todos
+from models.user import User, bcrypt_context
 
 
+TARGET_USER_COUNT = 4
 TARGET_ROW_COUNT = 20
+
+SEED_USERS = [
+    {
+        "username": "johndoe",
+        "email": "john@example.com",
+        "password": "securepassword123",
+        "is_active": True,
+        "first_name": "John",
+        "last_name": "Doe",
+    },
+    {
+        "username": "janesmith",
+        "email": "jane@example.com",
+        "password": "securepassword123",
+        "is_active": True,
+        "first_name": "Jane",
+        "last_name": "Smith",
+    },
+    {
+        "username": "alexrivera",
+        "email": "alex@example.com",
+        "password": "securepassword123",
+        "is_active": True,
+        "first_name": "Alex",
+        "last_name": "Rivera",
+    },
+    {
+        "username": "samlee",
+        "email": "sam@example.com",
+        "password": "securepassword123",
+        "is_active": True,
+        "first_name": "Sam",
+        "last_name": "Lee",
+    },
+]
 
 SEED_TODOS = [
     {
@@ -110,29 +147,97 @@ SEED_TODOS = [
 ]
 
 
-def seed_todos(target_count: int = TARGET_ROW_COUNT) -> int:
+def ensure_todos_owner_id_column(db) -> None:
+    owner_id_exists = db.execute(
+        text(
+            """
+            SELECT COUNT(*)
+            FROM user_tab_columns
+            WHERE table_name = 'TODOS'
+              AND column_name = 'OWNER_ID'
+            """
+        )
+    ).scalar()
+
+    if owner_id_exists:
+        return
+
+    db.execute(text("ALTER TABLE todos ADD (owner_id INTEGER)"))
+    print("Added missing owner_id column to todos.")
+
+
+def seed_users(db, target_count: int = TARGET_USER_COUNT) -> list[int]:
+    seed_emails = [user["email"] for user in SEED_USERS[:target_count]]
+    existing_users = db.query(User).filter(User.email.in_(seed_emails)).order_by(User.id).all()
+    existing_emails = {user.email for user in existing_users}
+
+    max_id = db.query(func.max(User.id)).scalar() or 0
+    users_to_create = []
+
+    for user_data in SEED_USERS[:target_count]:
+        if user_data["email"] in existing_emails:
+            continue
+
+        data = user_data.copy()
+        data["password"] = bcrypt_context.hash(data["password"])
+        users_to_create.append(User(id=max_id + len(users_to_create) + 1, **data))
+
+    if users_to_create:
+        db.add_all(users_to_create)
+        db.flush()
+
+    users = existing_users + users_to_create
+    print(f"Seed users ready: {len(users)}.")
+    return [user.id for user in users]
+
+
+def seed_todos(db, owner_ids: list[int], target_count: int = TARGET_ROW_COUNT) -> int:
+    existing_count = db.query(func.count(Todos.id)).scalar() or 0
+    rows_to_create = max(target_count - existing_count, 0)
+
+    if rows_to_create == 0:
+        print(f"Todos table already has {existing_count} rows.")
+        return 0
+
+    max_id = db.query(func.max(Todos.id)).scalar() or 0
+    todos = []
+
+    for index, todo_data in enumerate(SEED_TODOS[:rows_to_create], start=1):
+        owner_id = owner_ids[(existing_count + index - 1) % len(owner_ids)]
+        todos.append(Todos(id=max_id + index, owner_id=owner_id, **todo_data))
+
+    db.add_all(todos)
+    db.flush()
+
+    print(f"Inserted {len(todos)} todos. Total rows: {existing_count + len(todos)}.")
+    return len(todos)
+
+
+def assign_todo_owners(db, owner_ids: list[int]) -> int:
+    todos_without_owner = db.query(Todos).filter(Todos.owner_id.is_(None)).order_by(Todos.id).all()
+
+    for index, todo in enumerate(todos_without_owner):
+        todo.owner_id = owner_ids[index % len(owner_ids)]
+
+    print(f"Assigned owners to {len(todos_without_owner)} existing todos.")
+    return len(todos_without_owner)
+
+
+def seed_database() -> None:
     create_db()
 
     db = SessionLocal()
     try:
-        existing_count = db.query(func.count(Todos.id)).scalar() or 0
-        rows_to_create = max(target_count - existing_count, 0)
+        ensure_todos_owner_id_column(db)
 
-        if rows_to_create == 0:
-            print(f"Todos table already has {existing_count} rows.")
-            return 0
+        owner_ids = seed_users(db)
+        if not owner_ids:
+            raise RuntimeError("No users available to assign as todo owners.")
 
-        max_id = db.query(func.max(Todos.id)).scalar() or 0
-        todos = []
-
-        for index, todo_data in enumerate(SEED_TODOS[:rows_to_create], start=1):
-            todos.append(Todos(id=max_id + index, **todo_data))
-
-        db.add_all(todos)
+        seed_todos(db, owner_ids)
+        assign_todo_owners(db, owner_ids)
         db.commit()
-
-        print(f"Inserted {len(todos)} todos. Total rows: {existing_count + len(todos)}.")
-        return len(todos)
+        print("Seed completed.")
     except Exception:
         db.rollback()
         raise
@@ -141,4 +246,4 @@ def seed_todos(target_count: int = TARGET_ROW_COUNT) -> int:
 
 
 if __name__ == "__main__":
-    seed_todos()
+    seed_database()
