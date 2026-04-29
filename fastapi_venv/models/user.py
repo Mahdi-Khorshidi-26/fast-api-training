@@ -1,4 +1,3 @@
-from sqlalchemy import Column, Integer, String, Boolean
 from pydantic import BaseModel, Field
 from database.todos import Base
 from sqlalchemy import Column, Integer, String, Boolean
@@ -34,4 +33,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, index=True)
     email = Column(String, index=True)
+    password = Column(String)
     is_active = Column(Boolean, default=True)
+    first_name = Column(String)
+    last_name = Column(String)
