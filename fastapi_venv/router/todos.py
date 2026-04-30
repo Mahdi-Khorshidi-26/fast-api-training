@@ -1,27 +1,31 @@
-from fastapi import APIRouter, HTTPException, status, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
+from typing import Annotated
 from database.todos import db_dependency
 from models.todos import TodoRequest, Todos
+from models.user import User
+from .auth import user_dependency
+
 router_todos = APIRouter(
     prefix="/todos",
     tags=["todos"],
-)
-    
+)    
 
 
 @router_todos.get("/", status_code=status.HTTP_200_OK)
 def read_todos(
     db: db_dependency,
+    current_user: user_dependency,
     skip: int = Query(default=0, ge=0, description="Number of records to skip"),
     limit: int = Query(default=10, ge=1, le=100, description="Max number of records to return"),
 ):
-    todos = db.query(Todos).offset(skip).limit(limit).all()
+    todos = db.query(Todos).filter(Todos.owner_id == current_user.id).offset(skip).limit(limit).all()
     if not todos:
         raise HTTPException(status_code=404, detail="No todos found")
     return todos
 
 @router_todos.post("/", status_code=status.HTTP_201_CREATED)
-def create_todo(todo: TodoRequest, db: db_dependency):
-    db_todo = Todos(**todo.model_dump())
+def create_todo(todo: TodoRequest, db: db_dependency, current_user: user_dependency):
+    db_todo = Todos(**todo.model_dump(), owner_id=current_user.id)
     db.add(db_todo)
     db.commit()
     db.refresh(db_todo)
@@ -30,9 +34,10 @@ def create_todo(todo: TodoRequest, db: db_dependency):
 @router_todos.delete("/{todo_id}", status_code=status.HTTP_200_OK)
 def delete_todo(
     db: db_dependency,
+    current_user: user_dependency,
     todo_id: int = Path(gt=0, description="ID of the todo to delete"),
 ):
-    todo = db.query(Todos).filter(Todos.id == todo_id).first()
+    todo = db.query(Todos).filter(Todos.id == todo_id, Todos.owner_id == current_user.id).first()
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
     db.delete(todo)
@@ -43,9 +48,10 @@ def delete_todo(
 def update_todo(
     updated_todo: TodoRequest,
     db: db_dependency,
+    current_user: user_dependency,
     todo_id: int = Path(gt=0, description="ID of the todo to update"),
 ):
-    todo = db.query(Todos).filter(Todos.id == todo_id).first()
+    todo = db.query(Todos).filter(Todos.id == todo_id, Todos.owner_id == current_user.id).first()
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
     todo.title = updated_todo.title
@@ -59,9 +65,10 @@ def update_todo(
 @router_todos.get("/{todo_id}", status_code=status.HTTP_200_OK)
 def read_todo(
     db: db_dependency,
+    current_user: user_dependency,
     todo_id: int = Path(gt=0, description="ID of the todo to retrieve"),
 ):
-    todo = db.query(Todos).filter(Todos.id == todo_id).first()
+    todo = db.query(Todos).filter(Todos.id == todo_id, Todos.owner_id == current_user.id).first()
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
     return todo

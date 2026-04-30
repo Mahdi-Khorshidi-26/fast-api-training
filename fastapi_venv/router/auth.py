@@ -9,7 +9,7 @@ from models.token import Token
 from typing import Annotated
 
 router_users = APIRouter(
-    prefix="/users",
+    prefix="/auth",
     tags=["users"],
 )
 
@@ -21,7 +21,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 token_type = Annotated[str, Depends(oauth2_scheme)]
 
 
-def get_current_user(token: token_type, db: db_dependency = db_dependency):
+def get_current_user(token: token_type, db: db_dependency):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -41,6 +41,9 @@ def get_current_user(token: token_type, db: db_dependency = db_dependency):
     return user
 
 
+user_dependency = Annotated[dict, Depends(get_current_user)]
+
+
 def create_access_token(username: str, user_id:int, expires_delta: timedelta):
     to_encode = {"sub": username, "user_id": user_id}
     expires = datetime.now(timezone.utc) + expires_delta
@@ -53,9 +56,11 @@ def create_access_token(username: str, user_id:int, expires_delta: timedelta):
 @router_users.get("/", status_code=status.HTTP_200_OK)
 def read_users(
     db: db_dependency,
+    current_user: user_dependency,
     skip: int = Query(default=0, ge=0, description="Number of records to skip"),
     limit: int = Query(default=10, ge=1, le=100, description="Max number of records to return"),
 ):
+    
     users = db.query(User).offset(skip).limit(limit).all()
     if not users:
         raise HTTPException(status_code=404, detail="No users found")
@@ -75,6 +80,7 @@ def create_user(user: UserRequest, db: db_dependency):
 @router_users.delete("/{user_id}", status_code=status.HTTP_200_OK)
 def delete_user(
     db: db_dependency,
+    current_user: user_dependency,
     user_id: int = Path(gt=0, description="ID of the user to delete"),
 ):
     user = db.query(User).filter(User.id == user_id).first()
@@ -87,6 +93,7 @@ def delete_user(
 @router_users.get("/{user_id}", status_code=status.HTTP_200_OK)
 def read_user(
     db: db_dependency,
+    current_user: user_dependency,
     user_id: int = Path(gt=0, description="ID of the user to retrieve"),
 ):
     user = db.query(User).filter(User.id == user_id).first()
@@ -99,6 +106,7 @@ def read_user(
 def update_user(
     updated_user: UserRequest,
     db: db_dependency,
+    current_user: user_dependency,
     user_id: int = Path(gt=0, description="ID of the user to update"),  
 ):
     user = db.query(User).filter(User.id == user_id).first()
