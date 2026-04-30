@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException, status, Query, Path
 from database.todos import db_dependency
 from models.todos import TodoRequest, Todos
-router_todos = APIRouter()
+router_todos = APIRouter(
+    prefix="/todos",
+    tags=["todos"],
+)
     
 
 
-@router_todos.get("/todos", status_code=status.HTTP_200_OK)
+@router_todos.get("/", status_code=status.HTTP_200_OK)
 def read_todos(
     db: db_dependency,
     skip: int = Query(default=0, ge=0, description="Number of records to skip"),
@@ -16,7 +19,7 @@ def read_todos(
         raise HTTPException(status_code=404, detail="No todos found")
     return todos
 
-@router_todos.post("/todos")
+@router_todos.post("/", status_code=status.HTTP_201_CREATED)
 def create_todo(todo: TodoRequest, db: db_dependency):
     db_todo = Todos(**todo.model_dump())
     db.add(db_todo)
@@ -24,7 +27,7 @@ def create_todo(todo: TodoRequest, db: db_dependency):
     db.refresh(db_todo)
     return db_todo
 
-@router_todos.delete("/todos/{todo_id}", status_code=status.HTTP_200_OK)
+@router_todos.delete("/{todo_id}", status_code=status.HTTP_200_OK)
 def delete_todo(
     db: db_dependency,
     todo_id: int = Path(gt=0, description="ID of the todo to delete"),
@@ -36,7 +39,7 @@ def delete_todo(
     db.commit()
     return {"message": "Todo deleted successfully"}
 
-@router_todos.put("/todos/{todo_id}", status_code=status.HTTP_200_OK)
+@router_todos.put("/{todo_id}", status_code=status.HTTP_200_OK)
 def update_todo(
     updated_todo: TodoRequest,
     db: db_dependency,
@@ -53,7 +56,7 @@ def update_todo(
     db.refresh(todo)
     return todo
 
-@router_todos.get("/todos/{todo_id}", status_code=status.HTTP_200_OK)
+@router_todos.get("/{todo_id}", status_code=status.HTTP_200_OK)
 def read_todo(
     db: db_dependency,
     todo_id: int = Path(gt=0, description="ID of the todo to retrieve"),

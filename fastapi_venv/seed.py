@@ -152,9 +152,8 @@ def ensure_todos_owner_id_column(db) -> None:
         text(
             """
             SELECT COUNT(*)
-            FROM user_tab_columns
-            WHERE table_name = 'TODOS'
-              AND column_name = 'OWNER_ID'
+            FROM pragma_table_info('todos')
+            WHERE name = 'owner_id'
             """
         )
     ).scalar()
@@ -162,7 +161,7 @@ def ensure_todos_owner_id_column(db) -> None:
     if owner_id_exists:
         return
 
-    db.execute(text("ALTER TABLE todos ADD (owner_id INTEGER)"))
+    db.execute(text("ALTER TABLE todos ADD COLUMN owner_id INTEGER"))
     print("Added missing owner_id column to todos.")
 
 

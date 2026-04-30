@@ -1,0 +1,8 @@
+#!/bin/sh
+'''exec' "/Users/mahdikhorshidi/Documents/Projects/Python Projects/fast-api/fastapi_venv/bin/python3.14" "$0" "$@"
+' '''
+import sys
+from rsa.cli import sign
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(sign())

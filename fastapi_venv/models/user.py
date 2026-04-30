@@ -37,3 +37,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     first_name = Column(String(50))
     last_name = Column(String(50))
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
